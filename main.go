@@ -39,7 +39,7 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err)
 	}
-	log.Info().Str("role", "slave").Msg("changed role")
+	log.Info().Str("role", "slave").Msg("set role")
 
 	client := redis.NewSentinelClient(&redis.Options{
 		Addr: "localhost:26379",
@@ -53,7 +53,7 @@ func main() {
 		if err != nil {
 			log.Error().Err(err)
 		}
-		log.Info().Str("role", "master").Msg("changed role")
+		log.Info().Str("role", "master").Msg("set role")
 	}
 
 	for {
@@ -77,12 +77,20 @@ func main() {
 		for msg := range ch {
 			log.Info().Str("channel", msg.Channel).Str("payload", msg.Payload).Msg("message")
 			p := strings.Split(msg.Payload, " ")
-			if p[0] == masterGroup && p[3] == podIP {
-				_, err = clientset.CoreV1().Pods(podNamespace).Patch(podName, types.MergePatchType, patchMaster)
-				if err != nil {
-					log.Error().Err(err)
+			if p[0] == masterGroup {
+				if p[3] == podIP {
+					_, err = clientset.CoreV1().Pods(podNamespace).Patch(podName, types.MergePatchType, patchMaster)
+					if err != nil {
+						log.Error().Err(err)
+					}
+					log.Info().Str("role", "master").Msg("set role")
+				} else {
+					_, err = clientset.CoreV1().Pods(podNamespace).Patch(podName, types.MergePatchType, patchSlave)
+					if err != nil {
+						log.Error().Err(err)
+					}
+					log.Info().Str("role", "slave").Msg("set role")
 				}
-				log.Info().Str("role", "master").Msg("changed role")
 			}
 		}
 	}
