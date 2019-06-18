@@ -46,15 +46,27 @@ func main() {
 	})
 	defer client.Close()
 
-	masterIP := client.GetMasterAddrByName(masterGroup).Val()[0]
+	go func() {
+		for {
+			masterIP := client.GetMasterAddrByName(masterGroup).Val()[0]
 
-	if podIP == masterIP {
-		_, err = clientset.CoreV1().Pods(podNamespace).Patch(podName, types.MergePatchType, patchMaster)
-		if err != nil {
-			log.Error().Err(err)
+			if podIP == masterIP {
+				_, err = clientset.CoreV1().Pods(podNamespace).Patch(podName, types.MergePatchType, patchMaster)
+				if err != nil {
+					log.Error().Err(err)
+				}
+				log.Info().Str("role", "master").Msg("set role")
+			} else {
+				_, err = clientset.CoreV1().Pods(podNamespace).Patch(podName, types.MergePatchType, patchSlave)
+				if err != nil {
+					log.Error().Err(err)
+				}
+				log.Info().Str("role", "slave").Msg("set role")
+			}
+
+			time.Sleep(30 * time.Second)
 		}
-		log.Info().Str("role", "master").Msg("set role")
-	}
+	}()
 
 	for {
 		pubsub := client.PSubscribe("+switch-master")
